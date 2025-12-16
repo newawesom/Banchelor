@@ -1,2 +1,2 @@
-./calibration/run
-*.pyc
+script/calibration/run/
+*pyc

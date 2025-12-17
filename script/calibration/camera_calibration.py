@@ -25,7 +25,8 @@ class Camera_Calibration:
         self.vehicle_att = [0, 0, 0] # 无人机的初始姿态(以欧拉角描述)
         self.object_points = [] # 标定板角点3D世界坐标
         self.image_points = []  # 标定板角点2D像素坐标
-        self.image_size = None
+        self.image_size = (0, 0)
+        
     
     def setup_env(self) -> None:
         '''
@@ -67,7 +68,7 @@ class Camera_Calibration:
 
         :returns out: 返回采样图片存储的路径
         '''
-        board_init_pos = [self.vehicle_pos[0] + 0.5, self.vehicle_pos[1], self.vehicle_pos[2] - 0.1]
+        board_init_pos = [self.vehicle_pos[0] + 0.6, self.vehicle_pos[1], self.vehicle_pos[2] - 0.1]
         board_init_att = [self.vehicle_att[0] + math.pi / 2, self.vehicle_att[1], self.vehicle_att[2] + math.pi / 2]
 
         #创建标定板
@@ -155,13 +156,33 @@ class Camera_Calibration:
             # 画出角点
             cv2.drawChessboardCorners(img, (12, 8), corners, ret)
             cv2.imshow("Chessboard Corners", img)
-            cv2.waitKey(1500)
+            cv2.waitKey(100)
         print(f"Corners are found in {len(img_points)} board images.")
         cv2.destroyAllWindows()
         self.object_points = obj_points
         self.image_points = img_points
         self.image_size = size
+        #TODO: 将数据存储在可存储文件当中
 
-    def calibrate_camera(self) -> None:
-        pass
+    def calibrate_camera(self) -> tuple[float, cv2.UMat, cv2.UMat]:
+        '''
+        由@fn find_chessboard_corners()找到的角点的世界坐标和像素坐标进行标定，使用前必须先调用@fn find_chessboard_corners()找到角点
+
+        :return: 返回标定精度、内参数矩阵、畸变参数的元组
+        :rtype: tuple[float, UMat, UMat]
+        '''
+        #criteria = (cv2.TERM_CRITERIA_COUNT | cv2.TERM_CRITERIA_EPS, 30, 0.001)
+        #TODO：从文件中读取数据
+        if self.object_points == [] or self.image_points == []:
+            print("[ERROR]Empty object points & image points, please call find_chessboard_corner first!")
+            sys.exit(0)
+        ret, camera_matrix, distortion, r_vecs, t_vecs = cv2.calibrateCamera(self.object_points, self.image_points, self.image_size, None, None, None, None)
+        print("ret:", ret)
+        print("mtx:\n", camera_matrix)
+        print("dist:\n", distortion)
+        #print("rvecs:\n", r_vecs)
+        #print("tvecs:\n", t_vecs)
+
+        return (ret, camera_matrix, distortion)
+        # TODO：将结果数据存储在文件中以便读取
         

@@ -3,13 +3,14 @@ import os
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-PATH = os.path.join(current_dir, "run", "20251216_112402")
+PATH = os.path.join(current_dir, "run", "20251217_113613")
 def test() -> None:
     calibration = calib.Camera_Calibration()
     #calibration.setup_env()
-    #calibration.fetch_board_images(10)
-    
+    #path = calibration.fetch_board_images(50)
+
     calibration.find_chessboard_corners(PATH)
+    calibration.calibrate_camera()
 
 if __name__ == "__main__":
     test()

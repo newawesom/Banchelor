@@ -26,7 +26,12 @@ class Camera_Calibration:
         self.object_points = [] # 标定板角点3D世界坐标
         self.image_points = []  # 标定板角点2D像素坐标
         self.image_size = (0, 0)
+<<<<<<< HEAD
         
+=======
+        self.camera_matrix = cv2.UMat()
+        self.distortion = cv2.UMat()
+>>>>>>> 845ca748c55787b48e011a68f5060209fa682b9a
     
     def setup_env(self) -> None:
         '''

@@ -1,5 +1,5 @@
 import camera_calibration as calib
-import os
+import os, sys
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -9,8 +9,7 @@ def test() -> None:
     #calibration.setup_env()
     #path = calibration.fetch_board_images(50)
 
-    calibration.find_chessboard_corners(PATH)
-    calibration.calibrate_camera()
+    calibration.sample_and_calibrate()
 
 if __name__ == "__main__":
     test()

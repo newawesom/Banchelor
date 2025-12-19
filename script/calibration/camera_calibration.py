@@ -6,6 +6,8 @@ import sys
 import datetime
 import numpy as np
 import glob
+import json
+import psutil
 
 import cv2
 import VisionCaptureApi
@@ -19,26 +21,24 @@ class Camera_Calibration:
         
         :param self: 自体指针
         '''
-        self.ue = UE4CtrlAPI.UE4CtrlAPI() # UE4控制接口
-        self.vis = VisionCaptureApi.VisionCaptureApi() # 视觉取图接口
-        self.vehicle_pos = [4.5, 11.2, -1.21 - 3] # 无人机的初始位置
-        self.vehicle_att = [0, 0, 0] # 无人机的初始姿态(以欧拉角描述)
+        self.ue = UE4CtrlAPI.UE4CtrlAPI()               # UE4控制接口
+        self.vis = VisionCaptureApi.VisionCaptureApi()  # 视觉取图接口
+        self.vehicle_pos = [4.5, 11.2, -1.21 - 3]   # 无人机的初始位置
+        self.vehicle_att = [0, 0, 0]                # 无人机的初始姿态(以欧拉角描述)
         self.object_points = [] # 标定板角点3D世界坐标
         self.image_points = []  # 标定板角点2D像素坐标
         self.image_size = (0, 0)
-<<<<<<< HEAD
+        self.camera_matrix = np.ndarray((3,3), dtype= float)     # 相机内参数矩阵
+        self.camera_distortion =np.ndarray((1, 5), dtype= float) # 相机畸变参数
         
-=======
-        self.camera_matrix = cv2.UMat()
-        self.distortion = cv2.UMat()
->>>>>>> 845ca748c55787b48e011a68f5060209fa682b9a
     
-    def setup_env(self) -> None:
+    def __setup_env(self) -> None:
         '''
         设置标定板采样的环境
         
         :param self: 说明
         '''
+        print("Start setting up environment...")
         # 在UE中切换环境到Factory_drone
         self.ue.sendUE4Cmd('RflyChangeMapbyName Factory_drone')
         time.sleep(5)
@@ -63,7 +63,7 @@ class Camera_Calibration:
         self.vis.startImgCap(True)
         time.sleep(1)
 
-    def fetch_board_images(self, num: int) -> str:
+    def __fetch_board_images(self, num: int) -> str:
         '''
         获取用于标定的标定板图片采样
         
@@ -121,7 +121,7 @@ class Camera_Calibration:
         print(f"All {cnt} images have been written to path:{path_dir}")
         return path_dir
 
-    def find_chessboard_corners(self, image_dir: str) -> None:
+    def __find_chessboard_corners(self, image_dir: str) -> None:
         '''
         标定相机
         
@@ -167,9 +167,8 @@ class Camera_Calibration:
         self.object_points = obj_points
         self.image_points = img_points
         self.image_size = size
-        #TODO: 将数据存储在可存储文件当中
 
-    def calibrate_camera(self) -> tuple[float, cv2.UMat, cv2.UMat]:
+    def __calibrate_camera(self) -> tuple[float, cv2.UMat, cv2.UMat]:
         '''
         由@fn find_chessboard_corners()找到的角点的世界坐标和像素坐标进行标定，使用前必须先调用@fn find_chessboard_corners()找到角点
 
@@ -177,7 +176,6 @@ class Camera_Calibration:
         :rtype: tuple[float, UMat, UMat]
         '''
         #criteria = (cv2.TERM_CRITERIA_COUNT | cv2.TERM_CRITERIA_EPS, 30, 0.001)
-        #TODO：从文件中读取数据
         if self.object_points == [] or self.image_points == []:
             print("[ERROR]Empty object points & image points, please call find_chessboard_corner first!")
             sys.exit(0)
@@ -187,7 +185,75 @@ class Camera_Calibration:
         print("dist:\n", distortion)
         #print("rvecs:\n", r_vecs)
         #print("tvecs:\n", t_vecs)
+        self.camera_matrix = camera_matrix
+        self.camera_distortion = distortion
 
         return (ret, camera_matrix, distortion)
-        # TODO：将结果数据存储在文件中以便读取
         
+    def __save_parameters(self) -> None:
+        '''
+        将得出的内参数矩阵和畸变矩阵存储到json文件当中
+        '''
+        if self.camera_matrix.size == 0 or self.camera_distortion.size == 0:
+            print("Cannot find value, please rerun your program.")
+            sys.exit(0)
+        data = {'camera_matrix': self.camera_matrix,
+                     'distortion': self.camera_distortion}
+        json_data = {key: val.tolist() for key, val in data.items()}
+        with open("camera.json", 'w') as f:
+            json.dump(json_data, f)
+        print("Parameters have been written into file 'camera.json'.")
+        '''
+        从camera.json中读出数据
+        with open("camera.json", 'r') as f:
+        json_data = json.load(f)
+        data = {}
+        for key, val in json_data.items():
+            arr = np.array(val)
+            data[key] = arr
+        '''
+
+    def __is_running(self, exe_name: str) -> bool:
+        '''
+        判断某个程序是否在执行
+        
+        :param exe_name: 说明
+        :type exe_name: str
+        :return: 返回布尔值
+        :rtype: bool
+        '''
+        for proc in psutil.process_iter(attrs=["name"]):
+            try:
+                if proc.info["name"] == exe_name:
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        return False
+
+    def sample_and_calibrate(self) -> None:
+        '''
+        对标定板进行采样后进行相机标定
+        '''
+        if not self.__is_running("RflySim3D.exe"):
+            print("Please start RflySim3D first!")
+            sys.exit(1)
+        self.__setup_env()
+        path = self.__fetch_board_images(40)
+        self.__find_chessboard_corners(path)
+        ret, _, _ = self.__calibrate_camera()
+        if ret:
+            self.__save_parameters()
+            sys.exit(0)
+    
+    def calibrate_from_images(self, path: str) -> None:
+        '''
+        从一个路径导入图片并进行标定
+        
+        :param path: 图片保存的路径
+        :type path: str
+        '''
+        self.__find_chessboard_corners(path)
+        ret, _, _ = self.__calibrate_camera()
+        if ret:
+            self.__save_parameters()
+            sys.exit(0)

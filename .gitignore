@@ -1,2 +1,4 @@
 script/calibration/run/
 *pyc
+test.py
+camera.json

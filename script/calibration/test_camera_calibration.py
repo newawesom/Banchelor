@@ -9,7 +9,7 @@ def test() -> None:
     #calibration.setup_env()
     #path = calibration.fetch_board_images(50)
 
-    calibration.sample_and_calibrate()
+    calibration.calibrate_from_images(PATH)
 
 if __name__ == "__main__":
     test()

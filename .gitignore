@@ -1,5 +1,6 @@
 .vscode
-script/calibration/run/
+run
+/test/run
 *pyc
 test.py
 camera.json

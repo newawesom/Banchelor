@@ -8,6 +8,7 @@ import numpy as np
 import glob
 import json
 import psutil
+from pathlib import Path
 
 import cv2
 import VisionCaptureApi
@@ -57,13 +58,18 @@ class Camera_Calibration:
 
         # 向RflySim3D发送取图请求
         if not self.vis.sendReqToUE4():
-            sys.exit(0)
+            sys.exit(1)
         
         # 开启取图，模式为共享内存
         self.vis.startImgCap(True)
         time.sleep(1)
 
-    def __fetch_board_images(self, num: int) -> str:
+        if not self.vis.hasData[0]:
+            print("No data from camera!")
+            sys.exit(1)
+        print("The environment has been set up successfully.")
+
+    def __fetch_board_images(self, num: int = 40) -> Path:
         '''
         获取用于标定的标定板图片采样
         
@@ -81,9 +87,12 @@ class Camera_Calibration:
         time.sleep(1)
 
         # 以当前时间和日期创建文件夹，准备写入图片
-        path_prefix = sys.path[0] # 当前工作路径
-        path_dir = os.path.join(path_prefix, "run",datetime.datetime.now().strftime("%Y%m%d_%H%M%S")) # 在./run文件夹下以“年月日_时分秒”的格式创建保存目录
-        os.makedirs(path_dir)
+        # path_prefix = sys.path[0] # 当前工作路径
+        path_prefix = Path.cwd()
+        path_dir = Path(path_prefix, "run", datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+        # path_dir = os.path.join(path_prefix, "run",datetime.datetime.now().strftime("%Y%m%d_%H%M%S")) # 在./run文件夹下以“年月日_时分秒”的格式创建保存目录
+        path_dir.mkdir(parents=True)
+        print(path_dir)
         
         # 进入取图主循环
         start_time = time.time()
@@ -116,12 +125,14 @@ class Camera_Calibration:
                     img = self.vis.Img[0]
                     pic = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
                     # cv2.imshow("Board", pic)
-                    cv2.imwrite(os.path.join(path_dir, f"{cnt + 1}.jpg"), pic)
+                    image_path = path_dir.joinpath(f'{cnt}.jpg')
+                    print(image_path)
+                    cv2.imwrite(str(image_path), pic)
                 cnt += 1
         print(f"All {cnt} images have been written to path:{path_dir}")
         return path_dir
 
-    def __find_chessboard_corners(self, image_dir: str) -> None:
+    def __find_chessboard_corners(self, image_dir: Path) -> None:
         '''
         标定相机
         
@@ -137,8 +148,8 @@ class Camera_Calibration:
         img_points = [] # 存储2D点
 
         # 获取图片位置
-        images_path = os.path.join(image_dir, "*.jpg")
-        images = glob.glob(images_path)
+        images_path = Path(image_dir, "*.jpg")
+        images = glob.glob(str(images_path))
 
         # 设置寻找亚像素角点的参数，采用的停止准则是最大循环次数30和最大误差容限0.001
         criteria = (cv2.TERM_CRITERIA_MAX_ITER | cv2.TERM_CRITERIA_EPS, 30, 0.001)
@@ -196,7 +207,7 @@ class Camera_Calibration:
         '''
         if self.camera_matrix.size == 0 or self.camera_distortion.size == 0:
             print("Cannot find value, please rerun your program.")
-            sys.exit(0)
+            sys.exit(1)
         data = {'camera_matrix': self.camera_matrix,
                      'distortion': self.camera_distortion}
         json_data = {key: val.tolist() for key, val in data.items()}
@@ -238,7 +249,7 @@ class Camera_Calibration:
             print("Please start RflySim3D first!")
             sys.exit(1)
         self.__setup_env()
-        path = self.__fetch_board_images(40)
+        path = self.__fetch_board_images(50)
         self.__find_chessboard_corners(path)
         ret, _, _ = self.__calibrate_camera()
         if ret:
@@ -252,7 +263,7 @@ class Camera_Calibration:
         :param path: 图片保存的路径
         :type path: str
         '''
-        self.__find_chessboard_corners(path)
+        self.__find_chessboard_corners(Path(path))
         ret, _, _ = self.__calibrate_camera()
         if ret:
             self.__save_parameters()

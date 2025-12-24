@@ -12,20 +12,48 @@ from pathlib import Path
 
 
 class Aruco_Detection():
-    def __init__(self) -> None:
-        self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_7X7_1000)
+    def __init__(self, dictionary: int) -> None:
+        self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary)
         self.detector_parameters = cv2.aruco.DetectorParameters()
         self.detector = cv2.aruco.ArucoDetector(self.dictionary, self.detector_parameters)
-        self.input_image = cv2.UMat()
-        self.marker_corner = []
-        self.marker_ids = []
+        self.input_image = cv2.typing.MatLike
+        self.marker_corners = [cv2.typing.MatLike]
+        self.marker_ids = cv2.typing.MatLike
         self.camera_matrix = np.zeros((3, 3), dtype=float)
         self.camera_distortion = np.zeros((1, 5), dtype=float)
         
-    def detect_marker(self, input_image: cv2.UMat | cv2.Mat | np.ndarray) -> None:
-        self.input_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2GRAY)
+    def detect_marker(self, input_image: cv2.Mat | cv2.UMat | np.ndarray) -> bool:
+        '''
+        检测图中是否存在ArUco码
+        
+        :param input_image: 需要检测的图片
+        :type input_image: cv2.UMat | cv2.Mat | np.ndarray
+        :return: 是否找到ArUco码
+        :rtype: bool
+        '''
+        self.input_image = input_image
+        self.marker_corners, self.marker_ids, _ = self.detector.detectMarkers(self.input_image, None, None, None)
+        return self.marker_corners != () and self.marker_ids is not None
+    
+    def draw_marker(self) -> None:
+        '''
+        绘出图中存在的ArUco码
+        
+        :param self: 说明
+        '''
+        image = cv2.aruco.drawDetectedMarkers(self.input_image, self.marker_corners, self.marker_ids)
+        cv2.imshow("ArUco", image)
+        cv2.waitKey(1)
 
     def load_arguments(self, fname: str) -> bool:
+        '''
+        加载相机参数
+        
+        :param fname: 存储相机参数的json文件
+        :type fname: str
+        :return: 是否正确加载参数
+        :rtype: bool
+        '''
         with open(fname, 'r') as f:
             json_data = json.load(f)
             data = {}

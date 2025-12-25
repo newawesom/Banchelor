@@ -30,10 +30,18 @@ def test_aruco_detect() -> None:
 
 def test_draw_marker() -> None:
     detect = Aruco_Detection(cv2.aruco.DICT_6X6_250)
-    image_path = Path(PATH, "singlemarkersoriginal.jpg")
-    img = cv2.imread(str(image_path))
-    assert(detect.detect_marker(img))
-    detect.draw_marker()
+    image_path_1 = Path(PATH, "singlemarkersoriginal.jpg")
+    img_1 = cv2.imread(str(image_path_1))
+    assert(detect.detect_marker(img_1))
+    img1 = detect.draw_marker()
+    # cv2.waitKey(0)
+    image_path_2 = Path(PATH, "fake_image.png")
+    img_2 = cv2.imread(str(image_path_2))
+    assert(not detect.detect_marker(img_2))
+    img2 = detect.draw_marker()
+    cv2.imshow("ArUco1", img1)
+    cv2.imshow("ArUco2", img2)
+    cv2.waitKey(0)
 
 
 if __name__ == "__main__":

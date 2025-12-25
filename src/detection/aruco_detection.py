@@ -35,15 +35,20 @@ class Aruco_Detection():
         self.marker_corners, self.marker_ids, _ = self.detector.detectMarkers(self.input_image, None, None, None)
         return self.marker_corners != () and self.marker_ids is not None
     
-    def draw_marker(self) -> None:
+    def draw_marker(self) -> cv2.typing.MatLike:
         '''
         绘出图中存在的ArUco码
         
         :param self: 说明
+        :return: 如果找到ArUco码则返回绘出边缘和编号，否则返回原图像
+        :rtype: cv2.MatLike
         '''
-        image = cv2.aruco.drawDetectedMarkers(self.input_image, self.marker_corners, self.marker_ids)
-        cv2.imshow("ArUco", image)
-        cv2.waitKey(1)
+        if self.marker_corners != () and self.marker_ids is not None:
+            image = cv2.aruco.drawDetectedMarkers(self.input_image, self.marker_corners, self.marker_ids)
+        else:
+            image = self.input_image
+        return image
+        # cv2.waitKey(0)
 
     def load_arguments(self, fname: str) -> bool:
         '''

@@ -13,6 +13,7 @@ from detection import Aruco_Detection
 
 
 PATH = Path.cwd()
+CONFIG_PATH = Path(PATH, "config")
 PATH = Path(PATH, "run")
 def test_load_argument() -> None:
     detect = Aruco_Detection(cv2.aruco.DICT_6X6_250)
@@ -43,6 +44,27 @@ def test_draw_marker() -> None:
     cv2.imshow("ArUco2", img2)
     cv2.waitKey(0)
 
+def test_estimate_pose() -> None:
+    detect = Aruco_Detection(cv2.aruco.DICT_6X6_250)
+    image_path = Path(PATH, "singlemarkersoriginal.jpg")
+    config_path = Path(CONFIG_PATH, "camera.json")
+    img = cv2.imread(str(image_path))
+    assert(detect.detect_marker(img))
+    assert(detect.load_arguments(str(config_path)))
+    detect.estimate_pose()
+
+def test_draw_marker_axis() -> None:
+    detect = Aruco_Detection(cv2.aruco.DICT_6X6_250)
+    image_path = Path(PATH, "singlemarkersoriginal.jpg")
+    config_path = Path(CONFIG_PATH, "camera.json")
+    img = cv2.imread(str(image_path))
+    assert(detect.detect_marker(img))
+    assert(detect.load_arguments(str(config_path)))
+    detect.estimate_pose()
+    image = detect.draw_marker_axis()
+    cv2.imshow("ArUco", image)
+    cv2.waitKey(0)
+
 
 if __name__ == "__main__":
-    test_draw_marker()
+    test_draw_marker_axis()

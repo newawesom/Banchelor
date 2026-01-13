@@ -4,4 +4,4 @@ run
 *pyc
 test.py
 camera.json
-test_temp.py
+.DS_Store

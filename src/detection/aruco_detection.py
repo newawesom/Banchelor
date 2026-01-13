@@ -100,6 +100,7 @@ class Aruco_Detection():
             for index in range(num_markers):
                 # 调用 solvePnP 方法计算r_vec和t_vec
                 _, r_vec, t_vec = cv2.solvePnP(object_points, self.marker_corners[index], self.camera_matrix, self.camera_distortion, None, None, False, cv2.SOLVEPNP_IPPE_SQUARE)
+                # 按照marker_ids列表顺序列出的ID号依次调用solvePnP方法
                 #r_vecs.append(r_vec)
                 #t_vecs.append(t_vec)
                 # 调用solvePnPRefineLM 方法优化
@@ -109,7 +110,7 @@ class Aruco_Detection():
         
         self.r_vecs = r_vecs_LM
         self.t_vecs = t_vecs_LM
-        return r_vecs_LM, t_vecs_LM
+        return self.marker_ids, r_vecs_LM, t_vecs_LM
     
     def draw_marker_axis(self) -> cv2.typing.MatLike:
         '''

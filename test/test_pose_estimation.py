@@ -11,7 +11,10 @@ from estimation import Pose_Estimation
 def test_visualize() ->None:
     pose_estimation = Pose_Estimation()
     pose_estimation.visualize()
-
+def test_load_camera_config() -> None:
+    pose_estimation = Pose_Estimation()
+    pose_estimation.load_camera_config()
+    print(pose_estimation.camera_down_config, pose_estimation.camera_front_config)
 
 if __name__ == "__main__":
-    test_visualize()
+    test_load_camera_config()

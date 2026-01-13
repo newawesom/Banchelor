@@ -2,8 +2,9 @@ import UE4CtrlAPI as UE4CtrlAPI
 import ReqCopterSim
 import VisionCaptureApi
 
+import numpy as np
 import cv2
-import time, sys
+import time, sys, json
 from pathlib import Path
 
 
@@ -19,6 +20,8 @@ class Pose_Estimation():
         self.aruco_detection_down.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
         self.aruco_detection_front = Aruco_Detection(cv2.aruco.DICT_7X7_1000, maker_length= 1.0)
         self.aruco_detection_front.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
+        self.camera_down_config = {}
+        self.camera_front_config = {}
         self.vis = VisionCaptureApi.VisionCaptureApi()
         self.vis.jsonLoad(-1, str(Path(CONFIG_PATH, "Config.json")))
         is_suss = self.vis.sendReqToUE4()
@@ -70,3 +73,34 @@ class Pose_Estimation():
             cv2.waitKey(1)
             cv2.imshow("Camera-Front", image_front)
             cv2.waitKey(1)
+
+
+    def load_camera_config(self) -> None:
+        '''
+        加载相机相对于无人机质心的位置和姿态
+        处理位置和姿态角为旋转矩阵和转移向量
+        
+        :param self: 说明
+        '''
+        try:
+            with open(str(Path(CONFIG_PATH, "Config.json"))) as f:
+                data_raw = json.load(f)
+                cameras_config = data_raw["VisionSensors"]
+                for camera in cameras_config:
+                    if camera["SeqID"] == 0:
+                        self.camera_down_config["Pose"] = camera["SensorPosXYZ"]
+                        self.camera_down_config["t_vec"] = camera["SensorPosXYZ"]
+                        self.camera_down_config["Attitude"] = camera["SensorAngEular"]
+                    elif camera["SeqID"] == 1:
+                        self.camera_front_config["Pose"] = camera["SensorPosXYZ"]
+                        self.camera_front_config["t_vec"] = camera["SensorPoseXYZ"]
+                        self.camera_front_config["Attitude"] = camera["SensorAngEular"]
+        except:
+            print("Can not load json file!")
+        
+    def euler_to_rotmat(self, euler: list[float]) -> None:
+        pass
+
+    def transform(self):
+        # 根据从Config.json中读取传感器安装数据，接收marker相对于相机的r_vec和t_vec，输出marker相对于无人机质心的r_vec和t_vec
+        pass

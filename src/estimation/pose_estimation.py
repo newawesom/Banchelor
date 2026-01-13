@@ -6,16 +6,18 @@ import cv2
 import time, sys
 from pathlib import Path
 
+
 from detection import Aruco_Detection
 
 PATH = Path.cwd()
 CONFIG_PATH = Path(PATH, "config")
 
+
 class Pose_Estimation():
     def __init__(self) -> None:
-        self.aruco_detection_down = Aruco_Detection(cv2.aruco.DICT_7X7_1000)
+        self.aruco_detection_down = Aruco_Detection(cv2.aruco.DICT_7X7_1000, maker_length= 1.0)
         self.aruco_detection_down.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
-        self.aruco_detection_front = Aruco_Detection(cv2.aruco.DICT_7X7_1000)
+        self.aruco_detection_front = Aruco_Detection(cv2.aruco.DICT_7X7_1000, maker_length= 1.0)
         self.aruco_detection_front.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
         self.vis = VisionCaptureApi.VisionCaptureApi()
         self.vis.jsonLoad(-1, str(Path(CONFIG_PATH, "Config.json")))
@@ -43,15 +45,19 @@ class Pose_Estimation():
                 time.sleep(sleep_time)
             else:
                 last_time = time.time()
+            # TODO:将以下改为并行计算
             # 取图
             image_down = self.vis.Img[0]
             image_front = self.vis.Img[1]
             # 识别
             self.aruco_detection_down.detect_marker(image_down)
             self.aruco_detection_front.detect_marker(image_front)
+            # 计算位姿
+            self.aruco_detection_down.estimate_pose()
+            self.aruco_detection_front.estimate_pose()
             # 绘制标记
-            image_down = self.aruco_detection_down.draw_marker()
-            image_front = self.aruco_detection_front.draw_marker()
+            image_down = self.aruco_detection_down.draw_marker_axis()
+            image_front = self.aruco_detection_front.draw_marker_axis()
             # 显示
             cv2.imshow("Camera-Down", image_down)
             cv2.waitKey(1)

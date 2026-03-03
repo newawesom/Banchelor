@@ -24,6 +24,7 @@ class Pose_Estimation():
         self.aruco_detection_front.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
         self.camera_down_config = {}
         self.camera_front_config = {}
+
         self.vis = VisionCaptureApi.VisionCaptureApi()
         self.vis.jsonLoad(-1, str(Path(CONFIG_PATH, "Config.json")))
         is_suss = self.vis.sendReqToUE4()
@@ -104,3 +105,30 @@ class Pose_Estimation():
         except:
             print("Can not load json file!")
         
+    def fusion_loop(self)->None:
+        # 设置定时触发器
+        last_time = time.time()
+        time_interval = 1.0 / 30.0 # 触发的最小时间间隔，1s/30fps
+
+        # 设置子线程池处理函数
+        def process_frame(detector, frame):
+            '''
+            [取图]->[处理图像]->[识别]->[获取字段表]->[变换]->[输出变换后的字段表]
+
+            输入：detector Aruco_Detection()类 frame 一帧图像
+            输出：字段列表
+            '''
+            # [取图]传入参数frame
+            # [处理图像]
+            # TODO:预处理，以加速线程
+            # [识别]
+            detector.detect_marker(frame)
+            # PnP解算
+            detector.estimate_pose()
+            # 计算重映射误差
+            detector.calculate_reprojection_error()
+            # [获取字段表]
+            markers = detector.pack()
+            # [刚体变换]
+
+    

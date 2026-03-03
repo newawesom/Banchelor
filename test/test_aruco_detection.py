@@ -65,6 +65,17 @@ def test_draw_marker_axis() -> None:
     cv2.imshow("ArUco", image)
     cv2.waitKey(0)
 
+def test_calculate_reprojection_error()->None:
+    detect = Aruco_Detection(cv2.aruco.DICT_6X6_250)
+    image_path = Path(PATH, "singlemarkersoriginal.jpg")
+    config_path = Path(CONFIG_PATH, "camera.json")
+    img = cv2.imread(str(image_path))
+    assert(detect.detect_marker(img))
+    assert(detect.load_arguments(str(config_path)))
+    print(detect.estimate_pose())
+    print(detect.calculate_reprojection_error())
+    
+
 
 if __name__ == "__main__":
-    test_draw_marker_axis()
+    test_calculate_reprojection_error()

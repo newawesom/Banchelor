@@ -1,0 +1,22 @@
+{
+  "Markers": [
+    {
+      "id": 0,
+      "position": [4.5, 11.2, 1.21],
+      "attitude": [0, 0, 0],
+      "scale": 1
+    },
+    {
+      "id": 1,
+      "position": [-15.6, 11.2, 6],
+      "attitude": [0, -90, 0],
+      "scale": 1
+    },
+    {
+      "id": 2,
+      "position": [4.5, -1.6, 6],
+      "attitude": [90, 0, 0],
+      "scale": 1
+    }
+  ]
+}

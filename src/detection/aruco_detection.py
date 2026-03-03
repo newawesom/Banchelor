@@ -1,7 +1,7 @@
 '''
 @file aruco_detection.py
 @author NIUHAO
-@brief 接收一帧图像，从中找出可能的ArUco码，并绘制出轮廓图和三维坐标轴，输出ArUco相对于相机的位置向量和姿态矩阵
+@brief 接收一帧图像，从中找出可能的ArUco码，并绘制出轮廓图和三维坐标轴，输出相机相对于ArUco码的位置向量和姿态矩阵
 @input Image_file/MatLike/UMat
 @output r_vec[] & t_vec[] -> ndarray
 '''
@@ -17,13 +17,16 @@ class Aruco_Detection():
         self.detector_parameters = cv2.aruco.DetectorParameters()
         self.detector = cv2.aruco.ArucoDetector(self.dictionary, self.detector_parameters)
         self.input_image = cv2.typing.MatLike
+        self.object_points = np.ndarray
         self.marker_corners = [cv2.typing.MatLike]
-        self.marker_ids = cv2.typing.MatLike
+        self.marker_ids = np.ndarray
         self.camera_matrix = np.zeros((3, 3), dtype=np.float32)
         self.camera_distortion = np.zeros((1, 5), dtype=np.float32)
         self.marker_length = maker_length
         self.r_vecs = []
+        self.rot_mats = []
         self.t_vecs = []
+        self.reproject_errors = []
         
     def detect_marker(self, input_image: cv2.Mat | cv2.UMat | np.ndarray) -> bool:
         '''
@@ -90,11 +93,13 @@ class Aruco_Detection():
                          [self.marker_length / 2.0, -self.marker_length / 2.0, 0],
                          [-self.marker_length / 2.0, -self.marker_length / 2.0, 0]]
         object_points = np.array(object_points)
+        self.object_points = object_points
         # 定义t_vecs\r_vecs
         # r_vecs = []
         # t_vecs = []
         r_vecs_LM = []
         t_vecs_LM = []
+        rot_mats = []
         num_markers = len(self.marker_corners)
         if(self.marker_corners != () and self.marker_ids is not None):
             for index in range(num_markers):
@@ -106,11 +111,30 @@ class Aruco_Detection():
                 # 调用solvePnPRefineLM 方法优化
                 r_vec_LM, t_vec_LM = cv2.solvePnPRefineLM(object_points, self.marker_corners[index], self.camera_matrix, self.camera_distortion, r_vec, t_vec)
                 r_vecs_LM.append(r_vec_LM)
+                rot_mat, _ = cv2.Rodrigues(r_vec_LM)
+                rot_mats.append(rot_mat)
                 t_vecs_LM.append(t_vec_LM)
         
         self.r_vecs = r_vecs_LM
         self.t_vecs = t_vecs_LM
-        return self.marker_ids, r_vecs_LM, t_vecs_LM
+        self.rot_mats = rot_mats
+        return self.marker_ids, rot_mats, t_vecs_LM
+    
+    def calculate_reprojection_error(self) -> list[float]:
+        '''
+        对每一个可能的Marker计算重投影误差
+        '''
+        if(self.marker_ids is not None):
+            ids_flat = self.marker_ids.flatten()
+            for i, mid in enumerate(ids_flat):
+                projected_points, _ = cv2.projectPoints(self.object_points, self.r_vecs[i], self.t_vecs[i], self.camera_matrix, self.camera_distortion)
+                projected_points = projected_points.reshape(-1, 2)
+                errors = self.marker_corners[i] - projected_points
+                per_point_error = np.linalg.norm(errors, axis=1)
+                rmse = np.sqrt(np.mean(per_point_error ** 2))
+                self.reproject_errors.append(rmse)
+        return self.reproject_errors
+
     
     def draw_marker_axis(self) -> cv2.typing.MatLike:
         '''
@@ -124,3 +148,26 @@ class Aruco_Detection():
             for index in range(len(self.marker_corners)):
                 image = cv2.drawFrameAxes(image, self.camera_matrix, self.camera_distortion, self.r_vecs[index], self.t_vecs[index], self.marker_length * 1.5, 2)
         return image
+    
+    def pack(self) -> list:
+        '''
+        将后续模块可能用到的marker的相关信息打包成便于查阅的字典
+        
+        {
+            "id",
+            "rot_mat",
+            "t_vec",
+            "error"
+        }
+        '''
+        markers = []
+        if (self.marker_ids is not None):
+            ids_flat = self.marker_ids.flatten()
+            for i, mid in enumerate(ids_flat):
+                marker_dict = {}
+                marker_dict["id"] = mid
+                marker_dict["rot_mat"] = self.rot_mats[i]
+                marker_dict["t_vec"] = self.t_vecs[i]
+                marker_dict["error"] = self.reproject_errors[i]
+                markers.append(marker_dict)
+        return markers

@@ -12,6 +12,13 @@ class Coordinate_Transformation():
         self.markers = {}
 
     def parse_config(self, sensors_path:str, markers_path:str) -> None:
+        '''
+        解析参数，并将参数字段表存放在字典中
+
+        @param sensors_path 指定传感器位姿参数json文件存放的路径
+        @param markers_path 指定标记位姿参数json文件存放的路径
+        @return None 将处理后得到的字典存放在类成员变量当中，所以必须先运行此函数加载参数
+        '''
         self.vision_sensors = {}
         self.markers = {}
         with open(sensors_path, 'r') as f:
@@ -45,7 +52,9 @@ class Coordinate_Transformation():
 
     def transform(self, segment_table:dict, sensor_id:int) -> dict:
         '''
-        获取输入字段表，返回刚体坐标变换后的字段表
+        @brief 获取输入字段表，返回刚体坐标变换后的字段表
+        @param segment_table 输入的标记到里程计变换字段表，格式必须满足{"id", "rot_mat", "t_vec", "error"}
+        @param sensor_id 输入的传感器id
         '''
         if sensor_id not in self.vision_sensors:
             raise ValueError(f"sensor_id = {sensor_id} not found.")

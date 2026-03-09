@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 from detection import Aruco_Detection
+from transformation import *
 from utils import *
 
 PATH = Path.cwd()
@@ -22,6 +23,8 @@ class Pose_Estimation():
         self.aruco_detection_down.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
         self.aruco_detection_front = Aruco_Detection(cv2.aruco.DICT_7X7_1000, maker_length= 1.0)
         self.aruco_detection_front.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
+        self.coordinate_transformation = Coordinate_Transformation()
+        self.coordinate_transformation.parse_config(str(Path(CONFIG_PATH, "Config.json")), str(Path(CONFIG_PATH, "install_markers.json")))
         self.camera_down_config = {}
         self.camera_front_config = {}
 
@@ -110,25 +113,53 @@ class Pose_Estimation():
         last_time = time.time()
         time_interval = 1.0 / 30.0 # 触发的最小时间间隔，1s/30fps
 
-        # 设置子线程池处理函数
-        def process_frame(detector, frame):
-            '''
-            [取图]->[处理图像]->[识别]->[获取字段表]->[变换]->[输出变换后的字段表]
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            while(self.vis.hasData[0] and self.vis.hasData[1]):
+                # [last_time]=======[now] less-> wait until
+                # [last_time] + time_interval|
+                # [last_time]==================[now] more-> trigger immediately and set [last_time] to now
+                last_time = last_time + time_interval
+                sleep_time = last_time - time.time()
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+                else:
+                    last_time = time.time()
+                # 取图
+                image_down = self.vis.Img[0]
+                image_front = self.vis.Img[1]
+                # 处理
+                down_future = executor.submit(self.process_frame, self.aruco_detection_down, 0, image_down)
+                front_future = executor.submit(self.process_frame, self.aruco_detection_front, 1, image_front)
+                # 获取结果
+                markers_down = down_future.result()
+                markers_front = front_future.result()
+                # 【调试】打印结果
+                print(f"Markers from down camera:{markers_down}")
+                print(f"Markers from front camera:{markers_front}")
 
-            输入：detector Aruco_Detection()类 frame 一帧图像
-            输出：字段列表
-            '''
-            # [取图]传入参数frame
-            # [处理图像]
-            # TODO:预处理，以加速线程
-            # [识别]
-            detector.detect_marker(frame)
-            # PnP解算
-            detector.estimate_pose()
-            # 计算重映射误差
-            detector.calculate_reprojection_error()
-            # [获取字段表]
-            markers = detector.pack()
-            # [刚体变换]
+    def process_frame(self, detector: Aruco_Detection, sensor_id: int, frame: np.ndarray)->list:
+        '''
+        [取图]->[处理图像]->[识别]->[获取字段表]->[变换]->[输出变换后的字段表]
 
+        输入：detector Aruco_Detection()类 frame 一帧图像
+        输出：字段列表
+        '''
+        # [取图]传入参数frame
+        # [处理图像]
+        # TODO:预处理，以加速线程
+        # [识别]
+        detector.detect_marker(frame)
+        # PnP解算
+        detector.estimate_pose()
+        # 计算重映射误差
+        detector.calculate_reprojection_error()
+        # [获取字段表]
+        markers = detector.pack()
+        # [刚体变换]
+        result = []
+        for marker in markers:
+            marker_res = self.coordinate_transformation.transform(marker, sensor_id)
+            result.append(marker_res)
+        # [输出变换后字段表列表]
+        return result
     

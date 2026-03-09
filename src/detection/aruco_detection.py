@@ -124,6 +124,7 @@ class Aruco_Detection():
         '''
         对每一个可能的Marker计算重投影误差
         '''
+        self.reproject_errors = []
         if(self.marker_ids is not None):
             ids_flat = self.marker_ids.flatten()
             for i, mid in enumerate(ids_flat):

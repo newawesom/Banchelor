@@ -60,32 +60,32 @@ class Coordinate_Transformation():
             raise ValueError(f"sensor_id = {sensor_id} not found.")
         if segment_table["id"] not in self.markers:
             raise ValueError(f"marker_id = {segment_table['id']} not found.")
-        body2camera_T_inv = np.ndarray  # 相机到机体变换矩阵 1
-        marker2odom_T = np.ndarray      # 标记到里程计变换矩阵 3
-        world2marker_T = np.ndarray     # 世界到标记变换矩阵 4
-        odom2camera_T = np.ndarray      # 里程计到相机变换矩阵 2
-        world2body_T = np.ndarray       # 【目标】世界到机体变换矩阵
+        camera2body_T_inv = np.ndarray      # 机体到相机变换矩阵 1
+        marker2odom_T_inv = np.ndarray  # 标记到里程计变换矩阵 3
+        marker2world_T = np.ndarray     # 标记到世界系变换矩阵 4
+        camera2odom_T = np.ndarray      # 相机到里程计系变换矩阵 2
+        body2world_T = np.ndarray       # 【目标】世界到机体变换矩阵
 
-        # 处理相机到机体变换矩阵 1
-        _, body2camera_T_inv = rotmat_to_T(self.vision_sensors[sensor_id]["rot_mat"], self.vision_sensors[sensor_id]["t_vec"])
-        # 处理标记到里程计变换矩阵 3
+        # 处理机体到相机变换矩阵 1
+        _, camera2body_T_inv = rotmat_to_T(self.vision_sensors[sensor_id]["rot_mat"], self.vision_sensors[sensor_id]["t_vec"])
+        # 处理里程计到相机变换矩阵 3
         marker_id = segment_table["id"]
         rot_mat = segment_table["rot_mat"]
         t_vec = segment_table["t_vec"]
-        marker2odom_T, _ = rotmat_to_T(rot_mat, t_vec)
-        # 处理世界到标记变换矩阵 4
-        world2marker_T, _ = rotmat_to_T(self.markers[marker_id]["rot_mat"], self.markers[marker_id]["t_vec"])
-        # 处理里程计到相机变换矩阵 2
+        _,marker2odom_T_inv  = rotmat_to_T(rot_mat, t_vec)
+        # 处理标记到世界变换矩阵 4
+        marker2world_T, _ = rotmat_to_T(self.markers[marker_id]["rot_mat"], self.markers[marker_id]["t_vec"])
+        # 处理相机到里程计变换矩阵 2
         euler = [0.0, -90.0, -90.0]
         rot_mat = euler_to_rotmat(euler, degree=True)
         t_vec = [0, 0, 0]
-        odom2camera_T, _ = rotmat_to_T(rot_mat, t_vec)
+        camera2odom_T, _ = rotmat_to_T(rot_mat, t_vec)
 
         # 变换运算
-        world2body_T = ((world2marker_T @ marker2odom_T) @ odom2camera_T) @ body2camera_T_inv
+        body2world_T = ((marker2world_T @ marker2odom_T_inv) @ camera2odom_T) @ camera2body_T_inv
         
         # 重新封装
-        rot_mat, t_vec = T_to_rotmat(world2body_T)
+        rot_mat, t_vec = T_to_rotmat(body2world_T)
         segment_table_new = segment_table.copy()
         segment_table_new["rot_mat"] = rot_mat
         segment_table_new["t_vec"] = t_vec
@@ -132,6 +132,8 @@ def rotmat_to_euler(rot_mat: np.ndarray, degree=False):
     return roll, pitch, yaw
 
 def rotmat_to_T(rot_mat, t_vec):
+    rot_mat = np.asarray(rot_mat, dtype=float).reshape(3, 3)
+    t_vec = np.asarray(t_vec, dtype=float).reshape(3)
     T = np.eye(4)
     T[:3, :3] = rot_mat
     T[:3, 3] = t_vec

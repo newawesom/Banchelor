@@ -31,7 +31,7 @@ def test_transform() -> None:
     transf = Coordinate_Transformation()
     transf.parse_config(str(Path(CONFIG_PATH, "Config.json")), str(Path(CONFIG_PATH, "install_markers.json")))
     euler = [180.0, 0.0, 90]
-    t_vec = [1.1, 1.0, 10.0]
+    t_vec = [0, 0, 10]
     rot_mat = euler_to_rotmat(euler, degree=True)
     input_seg = {"id": 0,
                  "rot_mat": rot_mat,

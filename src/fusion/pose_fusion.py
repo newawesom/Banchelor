@@ -27,7 +27,7 @@ class Pose_Fusion():
                 sum_roll_div_error_square += roll / error2
                 sum_pitch_div_error_square += pitch /error2
                 sum_yaw_div_error_square += yaw /error2
-                sum_tvec_div_error_square += m["t_vec"] / error2
+                sum_tvec_div_error_square += np.asarray(m["t_vec"]).reshape(3,1) / error2
                 sum_one_div_error_square += 1.0 / error2
             weighted_mean_roll = sum_roll_div_error_square / sum_one_div_error_square
             weighted_mean_pitch = sum_roll_div_error_square / sum_one_div_error_square

@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from detection import Aruco_Detection
 from transformation import *
+from fusion import Pose_Fusion
 from utils import *
 
 PATH = Path.cwd()
@@ -31,6 +32,7 @@ class Pose_Estimation():
         self.camera_down_config = {}
         self.camera_front_config = {}
         self.marker_history = {"down": [], "front": []}
+        self.pose_fusion = Pose_Fusion()
 
         self.vis = VisionCaptureApi.VisionCaptureApi()
         self.vis.jsonLoad(-1, str(Path(CONFIG_PATH, "Config.json")))
@@ -134,13 +136,16 @@ class Pose_Estimation():
 
                     markers_down = down_future.result()
                     markers_front = front_future.result()
+                    markers = markers_down + markers_front
+                    fused_marker = self.pose_fusion.pose_fusion(markers)
+                    fused_marker["id"] = 99
+                    fused_marker["error"] = 0
                     timestamp = time.time()
 
                     self.collect_marker_snapshot("down", frame_index, timestamp, markers_down)
                     self.collect_marker_snapshot("front", frame_index, timestamp, markers_front)
-
-                    print(f"Markers from down camera:{markers_down}")
-                    print(f"Markers from front camera:{markers_front}")
+                    self.collect_marker_snapshot("fused", frame_index, timestamp, [fused_marker])
+                    
 
                     frame_index += 1
                     if max_frames is not None and frame_index >= max_frames:

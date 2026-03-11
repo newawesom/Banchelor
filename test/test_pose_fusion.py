@@ -25,6 +25,7 @@ def test_weighted_mean_fusion()->None:
     test_data.append(test_two)
     result = pose_fusion.pose_fusion(test_data)
     print(result)
+    print(result["t_vec"][0])
 
 if __name__ == "__main__":
     test_weighted_mean_fusion()

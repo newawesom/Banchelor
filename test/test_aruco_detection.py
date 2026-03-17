@@ -1,5 +1,7 @@
 import os, sys, cv2
 from pathlib import Path
+import VisionCaptureApi
+import time
 
 
 # Ensure project's `src` directory is on sys.path so `calibration` package is importable
@@ -74,8 +76,43 @@ def test_calculate_reprojection_error()->None:
     assert(detect.load_arguments(str(config_path)))
     print(detect.estimate_pose())
     print(detect.calculate_reprojection_error())
-    
+
+def test_in_online_env()->None:
+    detect = Aruco_Detection(cv2.aruco.DICT_7X7_1000, 1.0)
+    detect.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
+    vis = VisionCaptureApi.VisionCaptureApi()
+    vis.jsonLoad(-1, str(Path(CONFIG_PATH, "Config.json")))
+    is_suss = vis.sendReqToUE4()
+    if not is_suss:
+        print('[ERROR]Can not send request to UE4, please execute RflySim3D first.')
+        sys.exit(1)
+    vis.startImgCap(True)
+    time.sleep(1)
+
+    last_time = time.time()
+    time_interval = 1.0 / 30.0 # 触发的最小时间间隔，1s/30fps
+    while(vis.hasData[0]):
+        # [last_time]=======[now] less-> wait until
+        # [last_time] + time_interval|
+        # [last_time]==================[now] more-> trigger immediately and set [last_time] to now
+        last_time = last_time + time_interval
+        sleep_time = last_time - time.time()
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        else:
+            last_time = time.time()
+        # 取图
+        image_down = vis.Img[0]
+        detect.detect_marker(image_down)
+        drown_marker_down = detect.draw_marker()
+        cv2.imshow("Drown_Marker_Down", drown_marker_down)
+        cv2.waitKey(1)
+        image_front = vis.Img[1]
+        detect.detect_marker(image_front)
+        drown_marker_front = detect.draw_marker()
+        cv2.imshow("Drown_Maker_Front", drown_marker_front)
+        cv2.waitKey(1)
 
 
 if __name__ == "__main__":
-    test_calculate_reprojection_error()
+    test_in_online_env()

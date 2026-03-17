@@ -27,6 +27,16 @@ class Aruco_Detection():
         self.rot_mats = []
         self.t_vecs = []
         self.reproject_errors = []
+
+    def _preprocess_image(self, input_image: cv2.Mat |cv2.UMat | np.ndarray):
+        self.input_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2GRAY)
+        threshold = 68
+        maxval = 255
+        _, dst = cv2.threshold(self.input_image, threshold, maxval, cv2.THRESH_BINARY)
+        #_, dst = cv2.threshold(self.input_image, threshold, maxval, cv2.THRESH_OTSU)
+        self.input_image = dst
+        #return None
+        return dst
         
     def detect_marker(self, input_image: cv2.Mat | cv2.UMat | np.ndarray) -> bool:
         '''
@@ -37,7 +47,7 @@ class Aruco_Detection():
         :return: 是否找到ArUco码
         :rtype: bool
         '''
-        self.input_image = input_image
+        self._preprocess_image(input_image)
         self.marker_corners, self.marker_ids, _ = self.detector.detectMarkers(self.input_image, None, None, None)
         return self.marker_corners != () and self.marker_ids is not None
     

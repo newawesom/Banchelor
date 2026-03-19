@@ -38,7 +38,7 @@ REM Set the origin x,y,z position (m) and yaw angle (degree) at the map
 REM 修改此处来调整无人机的初始位置，单位为米（m）
 SET /a ORIGIN_POS_X=4
 SET /a ORIGIN_POS_Y=11
-SET /a ORIGIN_YAW=180
+SET /a ORIGIN_YAW=270
 
 REM Set the interval between two vehicle, unit:m
 REM 多机仿真时使用，单机时无效

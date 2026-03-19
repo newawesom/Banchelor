@@ -35,12 +35,12 @@ class Pose_Estimation():
         self.pose_fusion = Pose_Fusion()
 
         self.vis = VisionCaptureApi.VisionCaptureApi()
-        self.vis.jsonLoad(-1, str(Path(CONFIG_PATH, "Config.json")))
+        self.vis.jsonLoad(jsonPath=str(Path(CONFIG_PATH, "Config.json")))
         is_suss = self.vis.sendReqToUE4()
         if not is_suss:
             print('[ERROR]Can not send request to UE4, please execute RflySim3D first.')
             sys.exit(1)
-        self.vis.startImgCap(True)
+        self.vis.startImgCap()
         time.sleep(1)
 
     def visualize(self) -> None:

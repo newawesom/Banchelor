@@ -1,4 +1,5 @@
 import os, sys, cv2
+import numpy as np
 from pathlib import Path
 import VisionCaptureApi
 import UE4CtrlAPI
@@ -13,6 +14,7 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 from detection import Aruco_Detection
+import utils
 
 
 PATH = Path.cwd()
@@ -78,6 +80,15 @@ def test_calculate_reprojection_error()->None:
     print(detect.estimate_pose())
     print(detect.calculate_reprojection_error())
 
+def test_pack()->None:
+    detect = Aruco_Detection(cv2.aruco.DICT_7X7_1000, 1.0)
+    detect.marker_ids = np.array([[0]])
+    euler = [11.0, 12.0, 13.0]
+    detect.rot_mats.append(utils.euler_to_rotmat(euler, degree=True))
+    detect.t_vecs.append(np.array([1, 1, 1]))
+    detect.reproject_errors.append(0.1)
+    print(detect.pack())
+
 def test_in_online_env()->None:
     detect_down = Aruco_Detection(cv2.aruco.DICT_7X7_1000, 1.0)
     detect_front = Aruco_Detection(cv2.aruco.DICT_7X7_1000, 1.0)
@@ -125,4 +136,4 @@ def test_in_online_env()->None:
 
 
 if __name__ == "__main__":
-    test_in_online_env()
+    test_pack()

@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 import json
 from pathlib import Path
+import utils
 
 
 class Aruco_Detection():
@@ -186,6 +187,8 @@ class Aruco_Detection():
                 marker_dict["id"] = mid
                 marker_dict["rot_mat"] = self.rot_mats[i]
                 marker_dict["t_vec"] = self.t_vecs[i]
+                marker_dict["range"] = np.linalg.norm(x=self.t_vecs[i].flatten(), ord=2)
+                marker_dict["theta"] = abs(utils.rotmat_to_euler(self.rot_mats[i], degree=False)[1])
                 marker_dict["error"] = self.reproject_errors[i]
                 markers.append(marker_dict)
         return markers

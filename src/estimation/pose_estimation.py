@@ -20,9 +20,9 @@ CONFIG_PATH = Path(PATH, "config")
 
 class Pose_Estimation():
     def __init__(self) -> None:
-        self.aruco_detection_down = Aruco_Detection(cv2.aruco.DICT_7X7_1000, maker_length=1.0)
+        self.aruco_detection_down = Aruco_Detection(cv2.aruco.DICT_4X4_50, maker_length=1.0)
         self.aruco_detection_down.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
-        self.aruco_detection_front = Aruco_Detection(cv2.aruco.DICT_7X7_1000, maker_length=1.0)
+        self.aruco_detection_front = Aruco_Detection(cv2.aruco.DICT_4X4_50, maker_length=1.0)
         self.aruco_detection_front.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
         self.coordinate_transformation = Coordinate_Transformation()
         self.coordinate_transformation.parse_config(
@@ -137,7 +137,7 @@ class Pose_Estimation():
                     markers_down = down_future.result()
                     markers_front = front_future.result()
                     markers = markers_down + markers_front
-                    fused_marker = self.pose_fusion.pose_fusion(markers)
+                    fused_marker = self.pose_fusion.pose_fusion(markers, method=self.pose_fusion.SEPARATE_WEIGHT_MEAN_FUSION)
                     fused_marker["id"] = 99
                     fused_marker["error"] = 0
                     timestamp = time.time()
@@ -176,7 +176,8 @@ class Pose_Estimation():
         result = []
         for marker in markers:
             marker_res = self.coordinate_transformation.transform(marker, sensor_id)
-            result.append(marker_res)
+            if marker_res != {}:
+                result.append(marker_res)
         # [输出变换后字段表列表]
         return result
 

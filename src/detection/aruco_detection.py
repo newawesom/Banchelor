@@ -188,7 +188,8 @@ class Aruco_Detection():
                 marker_dict["rot_mat"] = self.rot_mats[i]
                 marker_dict["t_vec"] = self.t_vecs[i]
                 marker_dict["range"] = np.linalg.norm(x=self.t_vecs[i].flatten(), ord=2)
-                marker_dict["theta"] = abs(utils.rotmat_to_euler(self.rot_mats[i], degree=False)[1])
+                euler = utils.rotmat_to_euler(self.rot_mats[i], degree=False)
+                marker_dict["theta"] = np.pi - np.arccos(np.cos(euler[1]) * np.cos(euler[0]))
                 marker_dict["error"] = self.reproject_errors[i]
                 markers.append(marker_dict)
         return markers

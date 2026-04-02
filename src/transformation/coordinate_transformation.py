@@ -46,6 +46,7 @@ class Coordinate_Transformation():
                 t_vec = marker["position"]
                 segment = {"id": marker_id,
                            "rot_mat": rot_mat,
+                           "euler": euler,
                            "t_vec": t_vec}
                 self.markers[marker_id] = segment
     
@@ -59,7 +60,7 @@ class Coordinate_Transformation():
         if sensor_id not in self.vision_sensors:
             raise ValueError(f"sensor_id = {sensor_id} not found.")
         if segment_table["id"] not in self.markers:
-            raise ValueError(f"marker_id = {segment_table['id']} not found.")
+            return {}
         camera2body_T_inv = np.ndarray      # 机体到相机变换矩阵 1
         marker2odom_T_inv = np.ndarray  # 标记到里程计变换矩阵 3
         marker2world_T = np.ndarray     # 标记到世界系变换矩阵 4
@@ -89,9 +90,19 @@ class Coordinate_Transformation():
         segment_table_new = segment_table.copy()
         segment_table_new["rot_mat"] = rot_mat
         segment_table_new["t_vec"] = t_vec
+        # 权重增强
+        segment_table_new["feature"] = self.__distinguish_feature(self.markers[marker_id])
 
         return segment_table_new
-                
+    
+    def __distinguish_feature(self, marker:dict) ->str:
+        euler = marker["euler"]
+        if abs(abs(euler[2]) - 90.0) < 0.1:
+            return "Y"
+        elif abs(abs(euler[1]) - 90) < 0.1:
+            return "X"
+        else:
+            return "Z"
         
 
 def euler_to_rotmat(euler: list[float], degree=False):

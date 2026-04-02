@@ -32,13 +32,13 @@ set PX4SitlFrame=iris
 REM Set the map, use index or name of the map on CopterSim
 REM e.g., UE4_MAP=1 equals to UE4_MAP=Grasslands
 REM 将此处改为需要的仿真场景
-SET UE4_MAP=Factory_drone
+SET UE4_MAP=Factory
 
 REM Set the origin x,y,z position (m) and yaw angle (degree) at the map
 REM 修改此处来调整无人机的初始位置，单位为米（m）
-SET /a ORIGIN_POS_X=4
-SET /a ORIGIN_POS_Y=11
-SET /a ORIGIN_YAW=270
+SET /a ORIGIN_POS_X=0
+SET /a ORIGIN_POS_Y=0
+SET /a ORIGIN_YAW=0
 
 REM Set the interval between two vehicle, unit:m
 REM 多机仿真时使用，单机时无效

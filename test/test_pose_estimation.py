@@ -24,7 +24,7 @@ def test_fusion_loop()->None:
     run_path = Path(DATA_PATH, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
     run_path.mkdir(parents=True)
     pose_estimation = Pose_Estimation()
-    pose_estimation.fusion_loop(str(run_path), 20*3)
+    pose_estimation.fusion_loop(str(run_path), 20*5)
 
 if __name__ == "__main__":
     test_fusion_loop()

@@ -90,8 +90,8 @@ def test_pack()->None:
     print(detect.pack())
 
 def test_in_online_env()->None:
-    detect_down = Aruco_Detection(cv2.aruco.DICT_7X7_1000, 1.0)
-    detect_front = Aruco_Detection(cv2.aruco.DICT_7X7_1000, 1.0)
+    detect_down = Aruco_Detection(cv2.aruco.DICT_4X4_50, 1.0)
+    detect_front = Aruco_Detection(cv2.aruco.DICT_4X4_50, 1.0)
     detect_down.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
     detect_front.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
     vis = VisionCaptureApi.VisionCaptureApi()
@@ -136,4 +136,4 @@ def test_in_online_env()->None:
 
 
 if __name__ == "__main__":
-    test_pack()
+    test_in_online_env()

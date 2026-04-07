@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 def euler_to_rotmat(euler: list[float], degree=False):
         if degree:
@@ -36,3 +37,28 @@ def rotmat_to_euler(rot_mat: np.ndarray, degree=False):
         pitch = np.rad2deg(pitch)
         yaw   = np.rad2deg(yaw)
     return roll, pitch, yaw
+
+def quat_to_rotmat(quat: np.ndarray) -> np.ndarray:
+    q = [quat[1], quat[2], quat[3], quat[0]]
+    rot = R.from_quat(q)
+    R_mat = rot.as_matrix()
+    return R_mat
+
+def rotmat_to_quat(rotmat: np.ndarray) -> np.ndarray:
+    rot = R.from_matrix(rotmat)
+    q = rot.as_quat()
+    return np.array([q[3], q[0], q[1], q[2]])
+
+def quat_to_euler(quat: np.ndarray, degree=False) -> np.ndarray:
+    q = [quat[1], quat[2], quat[3], quat[0]]
+    rot = R.from_quat(q)
+    euler = rot.as_euler('zyx')
+    if degree:
+        roll  = np.rad2deg(euler[2])
+        pitch = np.rad2deg(euler[1])
+        yaw   = np.rad2deg(euler[0])
+    else:
+        roll = euler[2]
+        pitch = euler[1]
+        yaw = euler[0]
+    return np.array([roll, pitch, yaw])

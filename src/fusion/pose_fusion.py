@@ -1,5 +1,6 @@
 import numpy as np
 import utils
+from sklearn.covariance import MinCovDet
 
 class Pose_Fusion():
     def __init__(self) -> None:
@@ -7,17 +8,54 @@ class Pose_Fusion():
         self.IMPROVED_WEIGHT_MEAN_FUSION = 1
         self.LEAST_SQUARE_METHOD = 2
         self.SEPARATE_WEIGHT_MEAN_FUSION = 3
+        self.ELIMINATE_OUTLIERS_SEPARATE_WEIGHT_MEAN_FUSION = 4
 
     def pose_fusion(self, pose: list[dict], method:int=0)->dict:
         match method:
-            case 0:
+            case self.WEIGHT_MEAN_FUSION:
                 return self.__weighted_mean_fusion(pose)
-            case 1:
+            case self.IMPROVED_WEIGHT_MEAN_FUSION:
                 return self.__improved_weighted_mean_fusion(pose)
-            case 3:
+            case self.SEPARATE_WEIGHT_MEAN_FUSION:
                 return self.__separate_weighted_mean_fusion(pose)
+            case 4:
+                return self.__eliminate_outliers_separate_weight_mean_fusion(pose)
             case _:
                 return self.__weighted_mean_fusion(pose)
+            
+    def __pre_process_data(self, pose: list[dict], threshold: float, robust=False) -> list[dict]:
+        if(len(pose) <= 3):
+        # Too few sample
+            return pose
+        else:
+            data_mat = np.array((len(pose), 7))
+            pose_new = []
+            # Filling data_mat with [t_vec, quat] from pose
+            for index, pose_m in enumerate(pose):
+                t_vec = pose_m["t_vec"]
+                rot_mat = pose_m["rot_mat"]
+                quat = utils.rotmat_to_quat(rot_mat)
+                pose_m["quat"] = quat
+                vec = np.array([t_vec[0], t_vec[1], t_vec[2], quat[0], quat[1], quat[2], quat[3]])
+                pose_m["vec"] = vec
+                data_mat[:, index] = vec
+            # Get \mu and \sigma using robust method based on MCD or not
+            if robust:
+                mcd = MinCovDet().fit(data_mat)
+                mu = mcd.location_
+                Sigma = mcd.covariance_
+                Sigma_inv = np.linalg.inv(Sigma)
+            else:
+                mu = np.mean(data_mat, axis=0)
+                Sigma = np.cov(data_mat, rowvar=False)
+                Sigma_inv = np.linalg.inv(Sigma)
+            # eliminate outliers
+            for pose_m in pose:
+                d = pose_m["vec"] - mu
+                distance = d @ Sigma_inv @ d.T
+                if distance < threshold:
+                    pose_new.append(pose_m)
+            return pose_new
             
     def __improved_calculate_weight(self, seg:dict) -> float:
         seg_error = seg["error"]
@@ -126,4 +164,29 @@ class Pose_Fusion():
         else:
             return {}
             
-        
+    def __eliminate_outliers_separate_weight_mean_fusion(self, pose: list[dict]) -> dict:
+        if pose:
+            pose = self.__pre_process_data(pose, threshold=12.59)
+            sum_weighted_tvec = np.zeros((3, 1))
+            M = np.zeros((4, 4))
+            q_ref = pose[0]["quat"]
+            sum_weights = np.zeros((3, 1))
+            for m in pose:
+                weight = self.__separate_calculate_weight(m)
+                t_vec = np.asarray(m["t_vec"]).reshape(3, 1)
+                sum_weighted_tvec = sum_weighted_tvec + t_vec * weight
+                sum_weights = sum_weights + weight
+                if np.dot(m["quat"], q_ref) < 0:
+                    quat = - m["quat"]
+                else:
+                    quat = m["quat"]
+                M = M + weight * (quat.T @ quat)
+            weighted_mean_tvec = sum_weighted_tvec / sum_weights
+            eigenvalues, eigenvectors = np.linalg.eig(M)
+            weighted_mean_quat = eigenvectors[:, np.argmax(eigenvalues)]
+            weighted_mean_quat /= np.linalg.norm(weighted_mean_quat)
+            weighted_mean_rotmat = utils.quat_to_rotmat(weighted_mean_quat)
+            return {"rot_mat": weighted_mean_rotmat, "t_vec": weighted_mean_tvec}
+        else:
+            return {}
+    

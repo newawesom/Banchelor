@@ -58,7 +58,7 @@ class Aruco_Detection():
         self.marker_corners, self.marker_ids, _ = self.detector.detectMarkers(self.input_image, None, None, None)
         return self.marker_corners != () and self.marker_ids is not None
     
-    def draw_marker(self) -> cv2.typing.MatLike:
+    def draw_marker(self):
         '''
         绘出图中存在的ArUco码
         
@@ -155,7 +155,7 @@ class Aruco_Detection():
         return self.reproject_errors
 
     
-    def draw_marker_axis(self) -> cv2.typing.MatLike:
+    def draw_marker_axis(self):
         '''
         画出三条坐标轴
         

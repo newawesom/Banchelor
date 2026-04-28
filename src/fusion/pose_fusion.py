@@ -1,6 +1,6 @@
 import numpy as np
 import utils
-from sklearn.covariance import MinCovDet
+#from sklearn.covariance import MinCovDet
 
 class Pose_Fusion():
     def __init__(self) -> None:
@@ -19,26 +19,39 @@ class Pose_Fusion():
             case self.SEPARATE_WEIGHT_MEAN_FUSION:
                 return self.__separate_weighted_mean_fusion(pose)
             case 4:
+                pose = self.pre_process_data(pose, threshold=8)
                 return self.__eliminate_outliers_separate_weight_mean_fusion(pose)
             case _:
                 return self.__weighted_mean_fusion(pose)
             
-    def __pre_process_data(self, pose: list[dict], threshold: float, robust=False) -> list[dict]:
-        if(len(pose) <= 3):
+    def pre_process_data(self, pose: list[dict], threshold: float, robust=False) -> list[dict]:
+        data_length = len(pose)
+        MIN_DETECTED_MARKERS = 3
+        if(data_length <= MIN_DETECTED_MARKERS):
         # Too few sample
+            for pose_m in pose:
+                rot_mat = pose_m["rot_mat"]
+                quat = utils.rotmat_to_quat(rot_mat)
+                pose_m["quat"] = quat
             return pose
         else:
-            data_mat = np.array((len(pose), 7))
+            if data_length <= 7:
+                data_mat = np.zeros((len(pose), 3))
+            else:
+                data_mat = np.zeros((len(pose), 7))
             pose_new = []
-            # Filling data_mat with [t_vec, quat] from pose
+            # Filling data_mat with [t_vec, quat] or [t_vec] from pose
             for index, pose_m in enumerate(pose):
                 t_vec = pose_m["t_vec"]
                 rot_mat = pose_m["rot_mat"]
                 quat = utils.rotmat_to_quat(rot_mat)
                 pose_m["quat"] = quat
-                vec = np.array([t_vec[0], t_vec[1], t_vec[2], quat[0], quat[1], quat[2], quat[3]])
+                if data_length <= 7:
+                    vec = np.array([t_vec[0], t_vec[1], t_vec[2]])
+                else:
+                    vec = np.array([t_vec[0], t_vec[1], t_vec[2], quat[0], quat[1], quat[2], quat[3]])
                 pose_m["vec"] = vec
-                data_mat[:, index] = vec
+                data_mat[index, :] = vec
             # Get \mu and \sigma using robust method based on MCD or not
             if robust:
                 mcd = MinCovDet().fit(data_mat)
@@ -88,11 +101,11 @@ class Pose_Fusion():
         # 计算H(R)
         r = seg["range"]
         if r < 3:
-            H_r = np.log2(r + 1)
-        elif r < 7:
-            H_r = r - 1
+            H_r = r
+        elif r < 6:
+            H_r = r * r - 6
         else:
-            H_r = (r - 6) * (r - 6) + 5
+            H_r = np.exp(r) - np.exp(6) + 30
         # 计算error
         error = seg["error"]
         weight = (F_theta * G_i) / (H_r * error)
@@ -166,7 +179,6 @@ class Pose_Fusion():
             
     def __eliminate_outliers_separate_weight_mean_fusion(self, pose: list[dict]) -> dict:
         if pose:
-            pose = self.__pre_process_data(pose, threshold=12.59)
             sum_weighted_tvec = np.zeros((3, 1))
             M = np.zeros((4, 4))
             q_ref = pose[0]["quat"]
@@ -180,13 +192,13 @@ class Pose_Fusion():
                     quat = - m["quat"]
                 else:
                     quat = m["quat"]
-                M = M + weight * (quat.T @ quat)
+                M = M + np.max(weight) * np.outer(quat, quat)
             weighted_mean_tvec = sum_weighted_tvec / sum_weights
             eigenvalues, eigenvectors = np.linalg.eig(M)
             weighted_mean_quat = eigenvectors[:, np.argmax(eigenvalues)]
             weighted_mean_quat /= np.linalg.norm(weighted_mean_quat)
             weighted_mean_rotmat = utils.quat_to_rotmat(weighted_mean_quat)
-            return {"rot_mat": weighted_mean_rotmat, "t_vec": weighted_mean_tvec}
+            return {"rot_mat": weighted_mean_rotmat, "t_vec": weighted_mean_tvec, "quat": weighted_mean_quat}
         else:
             return {}
     

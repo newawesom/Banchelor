@@ -11,7 +11,7 @@
       "SendProtocol": [0, 0, 0, 0, 0, 0, 0, 0],
       "CameraFOV": 120,
       "EularOrQuat": 0,
-      "SensorPosXYZ": [0, 0, 0],
+      "SensorPosXYZ": [0, 0, 0.1],
       "SensorAngQuat": [0, 0, 0, 0],
       "SensorAngEular": [0, -90, 0],
       "otherParams": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]

@@ -3,13 +3,12 @@ from typing import Any, Generator
 import numpy as np
 import os, sys, time
 from pathlib import Path
+import cProfile
 
 os.environ.setdefault("MAVLINK20", "1")
 from pymavlink import mavutil
 
 import VisionCaptureApi
-import UE4CtrlAPI
-import PX4MavCtrlV4
 import ReqCopterSim
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,8 +25,12 @@ CONFIG_PATH = Path(PATH, "config")
 
 def get_odometry(pose_estimator: Generator) -> dict[str, Any]:
     seg_table = next(pose_estimator)
-    t_vec = np.asarray(seg_table["t_vec"], dtype=float).reshape(3)
-    quat = np.asarray(seg_table["quat"], dtype=float).reshape(4)
+    if seg_table:
+        t_vec = np.asarray(seg_table["t_vec"], dtype=float).reshape(3)
+        quat = np.asarray(seg_table["quat"], dtype=float).reshape(4)
+    else:
+        t_vec = [0, 0, 0]
+        quat = [0, 0, 0, 0]
     return {
         "timestamp": int(time.time() * 1e6),
         "position": t_vec,
@@ -103,7 +106,7 @@ def main():
     master = mavutil.mavlink_connection('udpout:127.0.0.1:20100')
     #master.wait_heartbeat()
     last_time = time.time()
-    time_interval = 1.0 / 30.0
+    time_interval = 1.0 / 1
     #=====LOOP======#
     while True:
         last_time = last_time + time_interval
@@ -112,9 +115,9 @@ def main():
             time.sleep(sleep_time)
         else:
             last_time = time.time()
-
+        
         send_odometry(master, get_odometry(generator))
 
 
 if __name__ == "__main__":
-    main()
+    cProfile.run("main()")

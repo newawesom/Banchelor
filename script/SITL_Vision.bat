@@ -51,7 +51,7 @@ SET IS_BROADCAST=0
 
 REM Set UDP data mode; 0: UDP_FULL, 1:UDP_Simple, 2: Mavlink_Full, 3: Mavlink_simple. input number or string
 REM 4:Mavlink_NoSend, 5:Mavlink_NoGPS, 6:Mavlink_Vision (NoGPS and set PX4 EKF)
-SET UDPSIMMODE=2
+SET UDPSIMMODE=6
 
 REM Set the path of the RflySim tools
 if not defined PSP_PATH (

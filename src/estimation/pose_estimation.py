@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from detection import Aruco_Detection
 from transformation import *
+from fusion import Pose_Fusion
 from utils import *
 
 PATH = Path.cwd()
@@ -18,10 +19,10 @@ CONFIG_PATH = Path(PATH, "config")
 
 
 class Pose_Estimation():
-    def __init__(self) -> None:
-        self.aruco_detection_down = Aruco_Detection(cv2.aruco.DICT_7X7_1000, maker_length=1.0)
+    def __init__(self, vis:VisionCaptureApi.VisionCaptureApi | None=None) -> None:
+        self.aruco_detection_down = Aruco_Detection(cv2.aruco.DICT_4X4_50, maker_length=1.0)
         self.aruco_detection_down.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
-        self.aruco_detection_front = Aruco_Detection(cv2.aruco.DICT_7X7_1000, maker_length=1.0)
+        self.aruco_detection_front = Aruco_Detection(cv2.aruco.DICT_4X4_50, maker_length=1.0)
         self.aruco_detection_front.load_arguments(str(Path(CONFIG_PATH, "camera.json")))
         self.coordinate_transformation = Coordinate_Transformation()
         self.coordinate_transformation.parse_config(
@@ -31,14 +32,18 @@ class Pose_Estimation():
         self.camera_down_config = {}
         self.camera_front_config = {}
         self.marker_history = {"down": [], "front": []}
+        self.pose_fusion = Pose_Fusion()
 
-        self.vis = VisionCaptureApi.VisionCaptureApi()
-        self.vis.jsonLoad(-1, str(Path(CONFIG_PATH, "Config.json")))
-        is_suss = self.vis.sendReqToUE4()
-        if not is_suss:
-            print('[ERROR]Can not send request to UE4, please execute RflySim3D first.')
-            sys.exit(1)
-        self.vis.startImgCap(True)
+        if vis is None:
+            self.vis = VisionCaptureApi.VisionCaptureApi()
+            self.vis.jsonLoad(jsonPath=str(Path(CONFIG_PATH, "Config.json")))
+            is_suss = self.vis.sendReqToUE4()
+            if not is_suss:
+                print('[ERROR]Can not send request to UE4, please execute RflySim3D first.')
+                sys.exit(1)
+            self.vis.startImgCap()
+        else:
+            self.vis = vis
         time.sleep(1)
 
     def visualize(self) -> None:
@@ -134,13 +139,19 @@ class Pose_Estimation():
 
                     markers_down = down_future.result()
                     markers_front = front_future.result()
+                    markers = markers_down + markers_front
+                    filtered_markers = self.pose_fusion.pre_process_data(markers, threshold=8)
+                    fused_marker = self.pose_fusion.eliminate_outliers_separate_weight_mean_fusion(filtered_markers)
+#                    fused_marker = self.pose_fusion.pose_fusion(markers, method=self.pose_fusion.ELIMINATE_OUTLIERS_SEPARATE_WEIGHT_MEAN_FUSION)
+                    fused_marker["id"] = 99
+                    fused_marker["error"] = 0
                     timestamp = time.time()
 
                     self.collect_marker_snapshot("down", frame_index, timestamp, markers_down)
                     self.collect_marker_snapshot("front", frame_index, timestamp, markers_front)
-
-                    print(f"Markers from down camera:{markers_down}")
-                    print(f"Markers from front camera:{markers_front}")
+                    self.collect_marker_snapshot("filtered", frame_index, timestamp, filtered_markers)
+                    self.collect_marker_snapshot("fused", frame_index, timestamp, [fused_marker])
+                    
 
                     frame_index += 1
                     if max_frames is not None and frame_index >= max_frames:
@@ -148,6 +159,21 @@ class Pose_Estimation():
         finally:
             if analysis_output_dir is not None:
                 self.export_marker_analysis(analysis_output_dir)
+
+    def yield_fusion_pose(self):
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            while(self.vis.hasData[0] and self.vis.hasData[1]):
+                image_down = self.vis.Img[0]
+                image_front = self.vis.Img[1]
+
+                down_future = executor.submit(self.process_frame, self.aruco_detection_down, 0, image_down)
+                front_future = executor.submit(self.process_frame, self.aruco_detection_front, 1, image_front)
+
+                markers_down = down_future.result()
+                markers_front = front_future.result()
+                markers = markers_down + markers_front
+                fused_marker = self.pose_fusion.pose_fusion(markers, method=self.pose_fusion.ELIMINATE_OUTLIERS_SEPARATE_WEIGHT_MEAN_FUSION)
+                yield fused_marker
 
     def process_frame(self, detector: Aruco_Detection, sensor_id: int, frame: np.ndarray) -> list:
         '''
@@ -158,12 +184,11 @@ class Pose_Estimation():
         '''
         # [取图]传入参数frame
         # [处理图像]
-        # TODO:预处理，以加速线程
         # [识别]
         detector.detect_marker(frame)
-        # PnP解算
+        # [PnP解算]
         detector.estimate_pose()
-        # 计算重映射误差
+        # [计算重映射误差]
         detector.calculate_reprojection_error()
         # [获取字段表]
         markers = detector.pack()
@@ -171,7 +196,8 @@ class Pose_Estimation():
         result = []
         for marker in markers:
             marker_res = self.coordinate_transformation.transform(marker, sensor_id)
-            result.append(marker_res)
+            if marker_res != {}:
+                result.append(marker_res)
         # [输出变换后字段表列表]
         return result
 

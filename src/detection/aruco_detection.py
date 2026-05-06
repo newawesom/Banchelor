@@ -9,14 +9,20 @@ import cv2
 import numpy as np
 import json
 from pathlib import Path
+import utils
 
 
 class Aruco_Detection():
     def __init__(self, dictionary: int, maker_length: float = 0.06) -> None:
         self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary)
         self.detector_parameters = cv2.aruco.DetectorParameters()
+        self.detector_parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+        self.detector_parameters.cornerRefinementWinSize = 5
+        self.detector_parameters.cornerRefinementMaxIterations = 30
+        self.detector_parameters.cornerRefinementMinAccuracy = 0.04
         self.detector = cv2.aruco.ArucoDetector(self.dictionary, self.detector_parameters)
         self.input_image = cv2.typing.MatLike
+        self.input_image_raw = cv2.typing.MatLike
         self.object_points = np.ndarray
         self.marker_corners = [cv2.typing.MatLike]
         self.marker_ids = np.ndarray
@@ -27,6 +33,17 @@ class Aruco_Detection():
         self.rot_mats = []
         self.t_vecs = []
         self.reproject_errors = []
+
+    def _preprocess_image(self, input_image: cv2.Mat |cv2.UMat | np.ndarray):
+        self.input_image_raw = input_image
+        self.input_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2GRAY)
+        threshold = 65
+        maxval = 255
+        #_, dst = cv2.threshold(self.input_image, threshold, maxval, cv2.THRESH_BINARY)
+        #_, dst = cv2.threshold(self.input_image, threshold, maxval, cv2.THRESH_OTSU)
+        #self.input_image = dst
+        return None
+        #return dst
         
     def detect_marker(self, input_image: cv2.Mat | cv2.UMat | np.ndarray) -> bool:
         '''
@@ -37,11 +54,11 @@ class Aruco_Detection():
         :return: 是否找到ArUco码
         :rtype: bool
         '''
-        self.input_image = input_image
+        self._preprocess_image(input_image)
         self.marker_corners, self.marker_ids, _ = self.detector.detectMarkers(self.input_image, None, None, None)
         return self.marker_corners != () and self.marker_ids is not None
     
-    def draw_marker(self) -> cv2.typing.MatLike:
+    def draw_marker(self):
         '''
         绘出图中存在的ArUco码
         
@@ -50,9 +67,9 @@ class Aruco_Detection():
         :rtype: cv2.MatLike
         '''
         if self.marker_corners != () and self.marker_ids is not None:
-            image = cv2.aruco.drawDetectedMarkers(self.input_image, self.marker_corners, self.marker_ids)
+            image = cv2.aruco.drawDetectedMarkers(self.input_image_raw, self.marker_corners, self.marker_ids)
         else:
-            image = self.input_image
+            image = self.input_image_raw
         return image
         # cv2.waitKey(0)
 
@@ -92,33 +109,34 @@ class Aruco_Detection():
                          [self.marker_length / 2.0, self.marker_length / 2.0, 0],
                          [self.marker_length / 2.0, -self.marker_length / 2.0, 0],
                          [-self.marker_length / 2.0, -self.marker_length / 2.0, 0]]
-        object_points = np.array(object_points)
+        object_points = np.array(object_points, dtype=np.float32)
         self.object_points = object_points
         # 定义t_vecs\r_vecs
         # r_vecs = []
         # t_vecs = []
-        r_vecs_LM = []
-        t_vecs_LM = []
+        r_vecs_Refine = []
+        t_vecs_Refine = []
         rot_mats = []
-        num_markers = len(self.marker_corners)
         if(self.marker_corners != () and self.marker_ids is not None):
-            for index in range(num_markers):
+            for index, _ in enumerate(self.marker_corners):
                 # 调用 solvePnP 方法计算r_vec和t_vec
-                _, r_vec, t_vec = cv2.solvePnP(object_points, self.marker_corners[index], self.camera_matrix, self.camera_distortion, None, None, False, cv2.SOLVEPNP_IPPE_SQUARE)
+                img_pts = np.asarray(self.marker_corners[index], dtype=np.float32).reshape(-1, 2)
+                _, r_vec, t_vec = cv2.solvePnP(object_points, img_pts, self.camera_matrix, self.camera_distortion, None, None, False, cv2.SOLVEPNP_IPPE_SQUARE)
                 # 按照marker_ids列表顺序列出的ID号依次调用solvePnP方法
                 #r_vecs.append(r_vec)
                 #t_vecs.append(t_vec)
                 # 调用solvePnPRefineLM 方法优化
-                r_vec_LM, t_vec_LM = cv2.solvePnPRefineLM(object_points, self.marker_corners[index], self.camera_matrix, self.camera_distortion, r_vec, t_vec)
-                r_vecs_LM.append(r_vec_LM)
-                rot_mat, _ = cv2.Rodrigues(r_vec_LM)
+                r_vec_Refine, t_vec_Refine = cv2.solvePnPRefineLM(object_points, img_pts, self.camera_matrix, self.camera_distortion, r_vec, t_vec)
+                # 调用solvePnPRansac()方法优化
+                r_vecs_Refine.append(r_vec_Refine)
+                rot_mat, _ = cv2.Rodrigues(r_vec_Refine)
                 rot_mats.append(rot_mat)
-                t_vecs_LM.append(t_vec_LM)
+                t_vecs_Refine.append(t_vec_Refine)
         
-        self.r_vecs = r_vecs_LM
-        self.t_vecs = t_vecs_LM
+        self.r_vecs = r_vecs_Refine
+        self.t_vecs = t_vecs_Refine
         self.rot_mats = rot_mats
-        return self.marker_ids, rot_mats, t_vecs_LM
+        return self.marker_ids, rot_mats, t_vecs_Refine
     
     def calculate_reprojection_error(self) -> list[float]:
         '''
@@ -137,7 +155,7 @@ class Aruco_Detection():
         return self.reproject_errors
 
     
-    def draw_marker_axis(self) -> cv2.typing.MatLike:
+    def draw_marker_axis(self):
         '''
         画出三条坐标轴
         
@@ -147,7 +165,7 @@ class Aruco_Detection():
         image = self.draw_marker()
         if self.marker_corners != () and self.marker_ids is not None:
             for index in range(len(self.marker_corners)):
-                image = cv2.drawFrameAxes(image, self.camera_matrix, self.camera_distortion, self.r_vecs[index], self.t_vecs[index], self.marker_length * 1.5, 2)
+                image = cv2.drawFrameAxes(image, self.camera_matrix, self.camera_distortion, self.r_vecs[index], self.t_vecs[index], self.marker_length * 3, 1)
         return image
     
     def pack(self) -> list:
@@ -169,6 +187,9 @@ class Aruco_Detection():
                 marker_dict["id"] = mid
                 marker_dict["rot_mat"] = self.rot_mats[i]
                 marker_dict["t_vec"] = self.t_vecs[i]
+                marker_dict["range"] = np.linalg.norm(x=self.t_vecs[i].flatten(), ord=2)
+                euler = utils.rotmat_to_euler(self.rot_mats[i], degree=False)
+                marker_dict["theta"] = np.pi - np.arccos(np.cos(euler[1]) * np.cos(euler[0]))
                 marker_dict["error"] = self.reproject_errors[i]
                 markers.append(marker_dict)
         return markers

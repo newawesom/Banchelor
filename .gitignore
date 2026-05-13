@@ -5,3 +5,4 @@ run
 test.py
 camera.json
 .DS_Store
+*.log

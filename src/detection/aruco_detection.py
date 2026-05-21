@@ -165,7 +165,7 @@ class Aruco_Detection():
         image = self.draw_marker()
         if self.marker_corners != () and self.marker_ids is not None:
             for index in range(len(self.marker_corners)):
-                image = cv2.drawFrameAxes(image, self.camera_matrix, self.camera_distortion, self.r_vecs[index], self.t_vecs[index], self.marker_length * 3, 1)
+                image = cv2.drawFrameAxes(image, self.camera_matrix, self.camera_distortion, self.r_vecs[index], self.t_vecs[index], self.marker_length * 2, 2)
         return image
     
     def pack(self) -> list:

@@ -1,4 +1,4 @@
-import os, sys
+import os, sys,math
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, ".."))
@@ -21,6 +21,11 @@ def test_quat_rotmat() -> None:
     quat = utils.rotmat_to_quat(rotmat)
     print(quat)
 
+def test_angle_between_euler()->None:
+    euler1 = [math.pi/2,0,0]
+    euler2 = [math.pi/2, 0, 0]
+    print(angle_between_euler(euler1, euler2))
+
 def test() -> None:
     x = np.array([1, 2, 3, 4, 5, 6])
     mu = np.array([0, 0, 0, 0, 0, 0])
@@ -37,4 +42,4 @@ def test() -> None:
     print(d)
 
 if __name__ == "__main__":
-    test()
+    test_angle_between_euler()

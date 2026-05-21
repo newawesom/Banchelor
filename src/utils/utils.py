@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from sympy import false
 
-def euler_to_rotmat(euler: list[float], degree=False):
+def euler_to_rotmat(euler: list[float] | np.ndarray, degree=False):
         if degree:
             roll = np.deg2rad(euler[0])
             pitch = np.deg2rad(euler[1])
@@ -62,3 +63,10 @@ def quat_to_euler(quat: np.ndarray, degree=False) -> np.ndarray:
         pitch = euler[1]
         yaw = euler[0]
     return np.array([roll, pitch, yaw])
+
+def angle_between_euler(euler1:np.ndarray | list[float], euler2:np.ndarray | list[float], degree:bool=False):
+    R1 = euler_to_rotmat(euler1, degree)
+    R2 = euler_to_rotmat(euler2, degree)
+    R_diff = R1.T @ R2
+    trace = np.clip(np.trace(R_diff), -1, 3)
+    return np.arccos((trace - 1)/2)

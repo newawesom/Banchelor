@@ -4,25 +4,24 @@ import utils
 
 class Pose_Fusion():
     def __init__(self) -> None:
-        self.WEIGHT_MEAN_FUSION = 0
+        self.SIMPLE_WEIGHT_MEAN_FUSION = 0
         self.IMPROVED_WEIGHT_MEAN_FUSION = 1
-        self.LEAST_SQUARE_METHOD = 2
-        self.SEPARATE_WEIGHT_MEAN_FUSION = 3
-        self.ELIMINATE_OUTLIERS_SEPARATE_WEIGHT_MEAN_FUSION = 4
+        self.SEPARATE_WEIGHT_MEAN_FUSION = 2
+        self.ELIMINATE_OUTLIERS_SEPARATE_WEIGHT_MEAN_FUSION = 3
 
     def pose_fusion(self, pose: list[dict], method:int=0)->dict:
         match method:
-            case self.WEIGHT_MEAN_FUSION:
-                return self.__weighted_mean_fusion(pose)
+            case self.SIMPLE_WEIGHT_MEAN_FUSION:
+                return self.__simple_weighted_mean_fusion(pose)
             case self.IMPROVED_WEIGHT_MEAN_FUSION:
                 return self.__improved_weighted_mean_fusion(pose)
             case self.SEPARATE_WEIGHT_MEAN_FUSION:
                 return self.__separate_weighted_mean_fusion(pose)
-            case 4:
+            case self.ELIMINATE_OUTLIERS_SEPARATE_WEIGHT_MEAN_FUSION:
                 pose = self.pre_process_data(pose, threshold=8)
                 return self.__eliminate_outliers_separate_weight_mean_fusion(pose)
             case _:
-                return self.__weighted_mean_fusion(pose)
+                return self.__simple_weighted_mean_fusion(pose)
             
     def pre_process_data(self, pose: list[dict], threshold: float, robust=False) -> list[dict]:
         data_length = len(pose)
@@ -69,6 +68,11 @@ class Pose_Fusion():
                 if distance < threshold:
                     pose_new.append(pose_m)
             return pose_new
+        
+    def __simple_calculate_weight(self, seg:dict) -> float:
+        seg_error = seg["error"]
+        weight = 1.0 / (seg_error * seg_error)
+        return weight
             
     def __improved_calculate_weight(self, seg:dict) -> float:
         seg_error = seg["error"]
@@ -83,9 +87,9 @@ class Pose_Fusion():
         w_i = (F(theta) * G(i)) / (H(R) * error)
         F(theta) = cos(theta);
         G(i) = 1 if i = f(id) else 0.5;
-        H(R) = {log_2(x+1), x < 3,
-                x - 1, 3 <= x < 7,
-                (x - 6)^2 + 5, x > 7};
+        H(r) = {r, x < 3,
+                r^2 - 6, 3 <= x < 6,
+                e^r - e^6 + 30, x >= 6};
         '''
         weight = np.zeros((3, 1), dtype=float)
         # 计算G(i)
@@ -111,30 +115,28 @@ class Pose_Fusion():
         weight = (F_theta * G_i) / (H_r * error)
         return weight
     
-    def __weighted_mean_fusion(self, pose: list[dict])->dict:
+    def __simple_weighted_mean_fusion(self, pose: list[dict])->dict:
         if pose:
-            weighted_mean_rotmat = np.ndarray
-            sum_roll_div_error_square = 0
-            sum_pitch_div_error_square = 0
-            sum_yaw_div_error_square = 0
-            sum_one_div_error_square = 0
-            weighted_mean_tvec = np.ndarray
-            sum_tvec_div_error_square = np.zeros((3, 1))
+            sum_weighted_roll = 0
+            sum_weighted_pitch = 0
+            sum_weighted_yaw = 0
+            sum_weights = 0
+            sum_weighted_vec = np.zeros((3, 1))
             for m in pose:
-                error2 = m["error"] * m["error"]
+                weight = self.__simple_calculate_weight(m)
                 roll, pitch, yaw = utils.rotmat_to_euler(m["rot_mat"])
-                sum_roll_div_error_square += roll / error2
-                sum_pitch_div_error_square += pitch /error2
-                sum_yaw_div_error_square += yaw /error2
-                sum_tvec_div_error_square += np.asarray(m["t_vec"]).reshape(3,1) / error2
-                sum_one_div_error_square += 1.0 / error2
-            weighted_mean_roll = sum_roll_div_error_square / sum_one_div_error_square
-            weighted_mean_pitch = sum_roll_div_error_square / sum_one_div_error_square
-            weighted_mean_yaw = sum_yaw_div_error_square / sum_one_div_error_square
+                sum_weighted_roll += roll * weight
+                sum_weighted_pitch += pitch * weight
+                sum_weighted_yaw += yaw * weight
+                sum_weighted_vec += np.asarray(m["t_vec"]).reshape(3,1) * weight
+                sum_weights += weight
+            weighted_mean_roll = sum_weighted_roll / sum_weights
+            weighted_mean_pitch = sum_weighted_roll / sum_weights
+            weighted_mean_yaw = sum_weighted_yaw / sum_weights
             weighted_mean_rotmat = utils.euler_to_rotmat([weighted_mean_roll,
                                                           weighted_mean_pitch,
                                                           weighted_mean_yaw])
-            weighted_mean_tvec = sum_tvec_div_error_square / sum_one_div_error_square
+            weighted_mean_tvec = sum_weighted_vec / sum_weights
             return {"rot_mat": weighted_mean_rotmat, "t_vec": weighted_mean_tvec}
         else:
             return {}

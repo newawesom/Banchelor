@@ -141,7 +141,7 @@ class Pose_Estimation():
                     markers_front = front_future.result()
                     markers = markers_down + markers_front
                     filtered_markers = self.pose_fusion.pre_process_data(markers, threshold=8)
-                    fused_marker = self.pose_fusion.eliminate_outliers_separate_weight_mean_fusion(filtered_markers)
+                    fused_marker = self.pose_fusion.__eliminate_outliers_separate_weight_mean_fusion(filtered_markers)
 #                    fused_marker = self.pose_fusion.pose_fusion(markers, method=self.pose_fusion.ELIMINATE_OUTLIERS_SEPARATE_WEIGHT_MEAN_FUSION)
                     fused_marker["id"] = 99
                     fused_marker["error"] = 0

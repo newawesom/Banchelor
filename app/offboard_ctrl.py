@@ -1,17 +1,19 @@
 import PX4MavCtrlV4 as PX4MavCtrl
-import time
+import time,math
 
 mav = PX4MavCtrl.PX4MavCtrler(1)
 
 mav.InitMavLoop()
 time.sleep(1)
-mav.SendPosNED(0, 0, -5, 0)
+#mav.SendPosNED(5, 12, 1.21 -7, math.pi*5/4)
+mav.SendPosNED(0, 0, 0.119 - 7, 0)
 time.sleep(1)
 mav.initOffboard()
-mav.SendPosNED(0, 0, -5, 0)
+#mav.SendPosNED(5, 12, 1.21 -7, math.pi*5/4)
+mav.SendPosNED(0, 0, 0.119 - 7, 0)
 time.sleep(0.5)
 mav.SendMavArm(True)
-time.sleep(1800)
+time.sleep(3600)
 
 print("Send offboard stop")
 mav.endOffboard()
